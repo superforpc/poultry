@@ -1,7 +1,14 @@
 import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
+import { initializeDatabase } from './database/init.js';
+import { customerRoutes } from './routes/customers.js';
+import { vendorRoutes } from './routes/vendors.js';
+import { deliveryChallanRoutes } from './routes/delivery-challans.js';
+import { invoiceRoutes } from './routes/invoices.js';
+import { ledgerRoutes } from './routes/ledger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,36 +16,42 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Initialize database
+initializeDatabase();
+
 // Middleware
+app.use(helmet());
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Test endpoint
-app.get('/api/test', (req, res) => {
+// API Routes
+app.use('/api/customers', customerRoutes);
+app.use('/api/vendors', vendorRoutes);
+app.use('/api/delivery-challans', deliveryChallanRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/ledger', ledgerRoutes);
+
+// Health check
+app.get('/api/health', (req, res) => {
   res.json({ 
-    message: 'ERP Backend Server is running!',
+    status: 'OK', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Serve static files and SPA fallback only in production
+// Serve static files in production
 if (process.env.NODE_ENV === 'production') {
-  const publicPath = path.join(__dirname, '..', 'dist', 'public');
-  app.use(express.static(publicPath));
+  const clientPath = path.join(__dirname, '../../dist/client');
+  app.use(express.static(clientPath));
   
-  // SPA fallback route
   app.get('*', (req, res) => {
-    res.sendFile(path.join(publicPath, 'index.html'));
+    res.sendFile(path.join(clientPath, 'index.html'));
   });
 }
 
-// Error handling middleware
+// Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
   res.status(500).json({ 
