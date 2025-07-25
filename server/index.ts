@@ -13,12 +13,6 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files only if the build directory exists
-const publicPath = path.join(__dirname, '..', 'dist', 'public');
-if (existsSync(publicPath)) {
-  app.use(express.static(publicPath));
-}
-
 // Test endpoint
 app.get('/api/test', (req, res) => {
   res.json({ 
@@ -33,11 +27,14 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// SPA fallback route - only if build directory exists
-const indexPath = path.join(publicPath, 'index.html');
-if (existsSync(indexPath)) {
+// Serve static files and SPA fallback only in production
+if (process.env.NODE_ENV === 'production') {
+  const publicPath = path.join(__dirname, '..', 'dist', 'public');
+  app.use(express.static(publicPath));
+  
+  // SPA fallback route
   app.get('*', (req, res) => {
-    res.sendFile(indexPath);
+    res.sendFile(path.join(publicPath, 'index.html'));
   });
 }
 
