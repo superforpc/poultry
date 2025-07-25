@@ -29,7 +29,7 @@
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-gray-300;
   }
   body {
     @apply bg-background text-foreground;
