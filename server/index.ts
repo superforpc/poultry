@@ -12,16 +12,6 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from the client build (production only)
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../dist/public')));
-
-  // Catch-all handler: send back React's index.html file for client-side routing
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/public/index.html'));
-  });
-}
-
 // Test endpoint
 app.get('/api/test', (req, res) => {
   res.json({ 
@@ -44,6 +34,16 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
 });
+
+// Serve static files from the client build (production only)
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../dist/public')));
+
+  // Catch-all handler: send back React's index.html file for client-side routing
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/public/index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
