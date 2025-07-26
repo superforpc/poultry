@@ -32,7 +32,6 @@
     @apply border-gray-300;
   }
   body {
-    @apply <div class="bg-gray-50">...</div>
-;
+    @apply bg-gray-50;
   }
 }
