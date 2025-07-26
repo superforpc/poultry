@@ -32,6 +32,40 @@ app.use('/api/delivery-challans', deliveryChallanRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/ledger', ledgerRoutes);
 
+// Test endpoint with database stats
+app.get('/api/test', (req, res) => {
+  try {
+    const { db } = require('./database/init.js');
+    
+    const customerCount = db.prepare('SELECT COUNT(*) as count FROM customers').get().count;
+    const vendorCount = db.prepare('SELECT COUNT(*) as count FROM vendors').get().count;
+    const dcCount = db.prepare('SELECT COUNT(*) as count FROM delivery_challans').get().count;
+    const invoiceCount = db.prepare('SELECT COUNT(*) as count FROM invoices').get().count;
+    const ledgerCount = db.prepare('SELECT COUNT(*) as count FROM ledger_entries').get().count;
+    
+    res.json({ 
+      status: 'OK',
+      message: 'ERP System Backend is running successfully!',
+      database: 'Connected',
+      stats: {
+        customers: customerCount,
+        vendors: vendorCount,
+        deliveryChallans: dcCount,
+        invoices: invoiceCount,
+        ledgerEntries: ledgerCount
+      },
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Database connection failed',
+      error: error.message
+    });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -64,4 +98,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 API available at: http://localhost:${PORT}/api`);
+  console.log(`🧪 Test endpoint: http://localhost:${PORT}/api/test`);
 });

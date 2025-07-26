@@ -1,7 +1,7 @@
-import { randomBytes } from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 export function generateId(): string {
-  return randomBytes(16).toString('hex');
+  return uuidv4();
 }
 
 export function formatDate(date: Date): string {

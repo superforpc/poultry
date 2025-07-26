@@ -1,5 +1,5 @@
 import React from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Eye } from 'lucide-react'
 import api from '../lib/api'
 import { formatCurrency, formatDate } from '../lib/utils'
@@ -28,6 +28,11 @@ interface Invoice {
 
 export default function Invoices() {
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
+  const [showForm, setShowForm] = React.useState(false)
+  const [cages, setCages] = React.useState([
+    { cageNumber: '', birds: 0, weight: 0, rate: 0, amount: 0 }
+  ])
+  const queryClient = useQueryClient()
 
   const { data: invoices, isLoading } = useQuery({
     queryKey: ['invoices'],
@@ -37,6 +42,15 @@ export default function Invoices() {
   const { data: customers } = useQuery({
     queryKey: ['customers'],
     queryFn: () => api.get('/customers').then(res => res.data)
+  })
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => api.post('/invoices', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      setShowForm(false)
+      setCages([{ cageNumber: '', birds: 0, weight: 0, rate: 0, amount: 0 }])
+    }
   })
 
   const getCustomerName = (customerId: string) => {
@@ -55,6 +69,51 @@ export default function Invoices() {
       default:
         return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  const updateCage = (index: number, field: string, value: any) => {
+    const newCages = [...cages]
+    newCages[index] = { ...newCages[index], [field]: value }
+    
+    // Calculate amount when weight or rate changes
+    if (field === 'weight' || field === 'rate') {
+      newCages[index].amount = newCages[index].weight * newCages[index].rate
+    }
+    
+    setCages(newCages)
+  }
+
+  const addCage = () => {
+    setCages([...cages, { cageNumber: '', birds: 0, weight: 0, rate: 0, amount: 0 }])
+  }
+
+  const removeCage = (index: number) => {
+    setCages(cages.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    
+    const subtotal = cages.reduce((sum, cage) => sum + cage.amount, 0)
+    const taxRate = parseFloat(formData.get('taxRate') as string) || 0
+    const tax = subtotal * (taxRate / 100)
+    const total = subtotal + tax
+    const paidAmount = parseFloat(formData.get('paidAmount') as string) || 0
+    
+    const data = {
+      invoiceNumber: formData.get('invoiceNumber') as string,
+      customerId: formData.get('customerId') as string,
+      date: new Date(formData.get('date') as string).toISOString(),
+      subtotal,
+      tax,
+      total,
+      paidAmount,
+      paymentMethod: formData.get('paymentMethod') as string,
+      cages: cages.filter(cage => cage.cageNumber && cage.birds > 0)
+    }
+
+    createMutation.mutate(data)
   }
 
   if (isLoading) {

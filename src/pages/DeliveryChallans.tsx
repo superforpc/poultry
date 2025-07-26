@@ -26,6 +26,11 @@ interface DeliveryChallan {
 
 export default function DeliveryChallans() {
   const [selectedChallan, setSelectedChallan] = React.useState<DeliveryChallan | null>(null)
+  const [showForm, setShowForm] = React.useState(false)
+  const [cages, setCages] = React.useState([
+    { cageNumber: '', birds: 0, weight: 0, rate: 0, amount: 0 }
+  ])
+  const queryClient = useQueryClient()
 
   const { data: challans, isLoading } = useQuery({
     queryKey: ['delivery-challans'],
@@ -37,9 +42,55 @@ export default function DeliveryChallans() {
     queryFn: () => api.get('/vendors').then(res => res.data)
   })
 
+  const createMutation = useMutation({
+    mutationFn: (data: any) => api.post('/delivery-challans', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-challans'] })
+      setShowForm(false)
+      setCages([{ cageNumber: '', birds: 0, weight: 0, rate: 0, amount: 0 }])
+    }
+  })
+
   const getVendorName = (vendorId: string) => {
     const vendor = vendors?.find((v: any) => v.id === vendorId)
     return vendor?.name || 'Unknown Vendor'
+  }
+
+  const updateCage = (index: number, field: string, value: any) => {
+    const newCages = [...cages]
+    newCages[index] = { ...newCages[index], [field]: value }
+    
+    // Calculate amount when weight or rate changes
+    if (field === 'weight' || field === 'rate') {
+      newCages[index].amount = newCages[index].weight * newCages[index].rate
+    }
+    
+    setCages(newCages)
+  }
+
+  const addCage = () => {
+    setCages([...cages, { cageNumber: '', birds: 0, weight: 0, rate: 0, amount: 0 }])
+  }
+
+  const removeCage = (index: number) => {
+    setCages(cages.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    
+    const data = {
+      dcNumber: formData.get('dcNumber') as string,
+      vendorName: formData.get('vendorName') as string,
+      date: new Date(formData.get('date') as string).toISOString(),
+      totalBirds: cages.reduce((sum, cage) => sum + cage.birds, 0),
+      totalWeight: cages.reduce((sum, cage) => sum + cage.weight, 0),
+      purchaseRate: parseFloat(formData.get('purchaseRate') as string),
+      cages: cages.filter(cage => cage.cageNumber && cage.birds > 0)
+    }
+
+    createMutation.mutate(data)
   }
 
   if (isLoading) {
@@ -58,7 +109,8 @@ export default function DeliveryChallans() {
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
           <button
             type="button"
-            className="flex items-center justify-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
+            onClick={() => setShowForm(true)}
+            className="flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create DC
@@ -66,6 +118,154 @@ export default function DeliveryChallans() {
         </div>
       </div>
 
+      {/* DC Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-4/5 max-w-4xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Create New Delivery Challan
+              </h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">DC Number *</label>
+                    <input
+                      type="text"
+                      name="dcNumber"
+                      required
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Vendor Name *</label>
+                    <input
+                      type="text"
+                      name="vendorName"
+                      required
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Date *</label>
+                    <input
+                      type="date"
+                      name="date"
+                      required
+                      defaultValue={new Date().toISOString().split('T')[0]}
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Purchase Rate *</label>
+                    <input
+                      type="number"
+                      name="purchaseRate"
+                      step="0.01"
+                      required
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-2">Cage Details</h4>
+                  {cages.map((cage, index) => (
+                    <div key={index} className="grid grid-cols-5 gap-2 mb-2">
+                      <input
+                        type="text"
+                        placeholder="Cage Number"
+                        value={cage.cageNumber}
+                        onChange={(e) => updateCage(index, 'cageNumber', e.target.value)}
+                        className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Birds"
+                        value={cage.birds}
+                        onChange={(e) => updateCage(index, 'birds', parseInt(e.target.value) || 0)}
+                        className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Weight (kg)"
+                        value={cage.weight}
+                        onChange={(e) => updateCage(index, 'weight', parseFloat(e.target.value) || 0)}
+                        className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Rate"
+                        value={cage.rate}
+                        onChange={(e) => updateCage(index, 'rate', parseFloat(e.target.value) || 0)}
+                        className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      />
+                      <div className="flex items-center">
+                        <span className="text-sm font-medium">₹{cage.amount.toFixed(2)}</span>
+                        {cages.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeCage(index)}
+                            className="ml-2 text-red-600 hover:text-red-800"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addCage}
+                    className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    + Add Cage
+                  </button>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">Total Birds: </span>
+                      <span>{cages.reduce((sum, cage) => sum + cage.birds, 0)}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Total Weight: </span>
+                      <span>{cages.reduce((sum, cage) => sum + cage.weight, 0).toFixed(2)} kg</span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Total Amount: </span>
+                      <span>₹{cages.reduce((sum, cage) => sum + cage.amount, 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false)
+                      setCages([{ cageNumber: '', birds: 0, weight: 0, rate: 0, amount: 0 }])
+                    }}
+                    className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={createMutation.isPending}
+                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-500 disabled:opacity-50"
+                  >
+                    Create DC
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Delivery Challans Table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
