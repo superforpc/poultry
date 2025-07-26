@@ -59,7 +59,7 @@ export default function Layout({ children }: LayoutProps) {
                   className={cn(
                     "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
                     isActive
-                      ? "bg-primary-50 text-primary-600"
+                      ? "bg-blue-50 text-blue-600"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   )}
                 >
@@ -89,7 +89,7 @@ export default function Layout({ children }: LayoutProps) {
                   className={cn(
                     "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
                     isActive
-                      ? "bg-primary-50 text-primary-600"
+                       ? "bg-blue-50 text-blue-600"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   )}
                 >
